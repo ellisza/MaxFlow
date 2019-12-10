@@ -1,14 +1,12 @@
 import java.io.File;
 import java.util.ArrayList;
-import java.util.PriorityQueue;
 import java.util.Scanner;
-import java.util.Arrays;
 
 public class Graph {
     int vertexCt;  // Number of vertices in the graph.
     GraphNode[] G;  // Adjacency list for graph.
+    Node[] graph = new Node[vertexCt];
     String graphName;  //The file from which the graph was created.
-    long flow[][];
 
     public Graph() {
         this.vertexCt = 0;
@@ -24,34 +22,52 @@ public class Graph {
     }
 
     public int maxFlowAlgorithm(Graph g){
-        int flowFin = 0;
-        int source = 0;
-        int destination = getVertexCt() - 1;
+        int maxFlow = 0;
+        int sink = getVertexCt();
 
-        PriorityQueue<Integer> Q = new PriorityQueue<>();
-        PriorityQueue<Integer> arbQ = new PriorityQueue<>();
-        Q.add(g.G[source].nodeID);
+        while (true) {
+            // Parent array used for storing path
+            // (parent[i] stores edge used to get to node i)
+            Edge[] parent = new Edge[vertexCt];
 
-        while(!Q.isEmpty()){
-            GraphNode current = g.G[Q.remove()];
-            if(!arbQ.contains(current.nodeID)){
-                arbQ.add(current.nodeID);
-            }
-            if(current.nodeID != G.length - 1){
-                for(GraphNode.EdgeInfo item : current.succ){
-                    if(item.to != g.getVertexCt() - 1){
-                        if(!arbQ.contains(item.to)){
-                            Q.add(item.to);
-                        }
+            ArrayList<Node> q = new ArrayList<>();
+            q.add(g.graph[0]);
+
+            // BFS finding shortest augmenting path
+            while (!q.isEmpty()) {
+                Node curr = q.remove(0);
+
+                // Checks that edge has not yet been visited, and it doesn't
+                // point to the source, and it is possible to send flow through it.
+                for (Edge e : curr.edges)
+                    if (parent[e.from] == null && e.from != 0 && e.capacity > e.flow) {
+                        parent[e.from] = e;
+                        q.add(g.graph[e.from]);
                     }
-                }
             }
+
+            // If sink was NOT reached, no augmenting path was found.
+            // Algorithm terminates and prints out max flow.
+            if (parent[sink] == null)
+                break;
+
+            // If sink WAS reached, we will push more flow through the path
+            int pushFlow = Integer.MAX_VALUE;
+
+            // Finds maximum flow that can be pushed through given path
+            // by finding the minimum residual flow of every edge in the path
+            for (Edge e = parent[sink]; e != null; e = parent[e.to - 1])
+                pushFlow = Math.min(pushFlow, e.capacity - e.flow);
+
+            // Adds to flow values and subtracts from reverse flow values in path
+            for (Edge e = parent[sink]; e != null; e = parent[e.to - 1]) {
+                e.flow += pushFlow;
+                e.reverse.flow -= pushFlow;
+            }
+
+            maxFlow += pushFlow;
         }
-
-        System.out.println(arbQ.toString());
-        System.out.println(Q.toString());
-
-        return flowFin;
+        return maxFlow;
     }
 
     public int getVertexCt() {
@@ -64,7 +80,10 @@ public class Graph {
         if (source < 0 || source >= vertexCt) return false;
         if (destination < 0 || destination >= vertexCt) return false;
         //add edge
+
+
         G[source].addEdge(source, destination, cap);
+
         return true;
     }
 
@@ -73,7 +92,7 @@ public class Graph {
         sb.append("The Graph " + graphName + " \n");
 
         for (int i = 0; i < vertexCt; i++) {
-            sb.append(G[i].toString());
+            sb.append(graph[i].toString());
         }
         return sb.toString();
     }
@@ -83,16 +102,25 @@ public class Graph {
             graphName = filename;
             Scanner reader = new Scanner(new File(filename));
             vertexCt = reader.nextInt();
-            G = new GraphNode[vertexCt];
+            graph = new Node[vertexCt];
             for (int i = 0; i < vertexCt; i++) {
-                G[i] = new GraphNode(i);
+                graph[i] = new Node(i);
             }
             while (reader.hasNextInt()) {
                 int v1 = reader.nextInt();
                 int v2 = reader.nextInt();
                 int cap = reader.nextInt();
-                if (!addEdge(v1, v2, cap))
-                    throw new Exception();
+
+                Edge a = new Edge(v1, v2, 0, cap);
+                Edge b = new Edge(v2, v1, 0, 0);
+
+                a.setReverse(b);
+                b.setReverse(a);
+
+                graph[v1].edges.add(a);
+                graph[v2].edges.add(b);
+                //if (!addEdge(v1, v2, cap))
+                //    throw new Exception();
             }
             reader.close();
         } catch (Exception e) {

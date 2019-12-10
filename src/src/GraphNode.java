@@ -39,10 +39,18 @@ public class GraphNode {
         int from;        // source of edge
         int to;          // destination of edge
         int capacity;    // capacity of edge
+        int flow;
+        EdgeInfo reverse;
+
         public EdgeInfo(int from, int to, int capacity) {
             this.from = from;
             this.to = to;
+            this.flow = 0;
             this.capacity = capacity;
+        }
+
+        public void setReverse(EdgeInfo e) {
+            reverse = e;
         }
 
         public String toString() {
